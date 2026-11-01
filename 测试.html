@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知识测试 · Quiz</title>
+<style>
+  :root{
+    --text:#e6ebf5;
+    --muted:#94a3b8;
+    --border:rgba(255,255,255,.1);
+    --p1:#6366f1;
+    --p2:#a855f7;
+    --ok:#22c55e;
+    --bad:#ef4444;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    display:flex;
+    min-height:100vh;
+    padding:40px 20px;
+    font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--text);
+    background:#0b1020;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* 背景光斑 */
+  body::before,body::after{
+    content:"";position:fixed;border-radius:50%;pointer-events:none;filter:blur(30px);z-index:0;
+  }
+  body::before{
+    width:560px;height:560px;top:-200px;left:-160px;
+    background:radial-gradient(circle,rgba(99,102,241,.38),transparent 68%);
+  }
+  body::after{
+    width:620px;height:620px;bottom:-240px;right:-200px;
+    background:radial-gradient(circle,rgba(168,85,247,.30),transparent 68%);
+  }
+
+  .app{position:relative;z-index:1;width:100%;max-width:720px;margin:auto;}
+
+  /* ---------- 卡片 ---------- */
+  .card{
+    background:rgba(255,255,255,.045);
+    border:1px solid var(--border);
+    border-radius:22px;
+    padding:34px 32px;
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+    box-shadow:0 24px 70px rgba(0,0,0,.5);
+  }
+
+  /* ---------- 屏幕切换 ---------- */
+  .screen{display:none;}
+  .screen.active{display:block;animation:fadeIn .38s ease both;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+
+  /* ---------- 按钮 ---------- */
+  .btn{
+    font:inherit;cursor:pointer;border:none;border-radius:13px;
+    padding:13px 26px;font-weight:600;font-size:15px;
+    transition:transform .18s ease,box-shadow .18s ease,background .18s ease,opacity .18s;
+  }
+  .btn.primary{
+    color:#fff;
+    background:linear-gradient(135deg,var(--p1),var(--p2));
+    box-shadow:0 10px 26px rgba(99,102,241,.42);
+  }
+  .btn.primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 14px 32px rgba(99,102,241,.58);}
+  .btn.ghost{
+    background:rgba(255,255,255,.06);
+    color:var(--text);
+    border:1px solid var(--border);
+  }
+  .btn.ghost:hover:not(:disabled){background:rgba(255,255,255,.13);}
+  .btn:disabled{opacity:.35;cursor:not-allowed;}
+  .btn:active:not(:disabled){transform:scale(.97);}
+
+  /* ---------- 开始页 ---------- */
+  .badge{
+    display:inline-block;
+    padding:6px 14px;border-radius:99px;
+    font-size:13px;font-weight:600;letter-spacing:.4px;
+    color:#c7b3ff;
+    background:rgba(139,92,246,.16);
+    border:1px solid rgba(139,92,246,.35);
+    margin-bottom:18px;
+  }
+  .start-title{
+    font-size:clamp(26px,5vw,34px);
+    font-weight:800;
+    letter-spacing:-.5px;
+    line-height:1.25;
+    background:linear-gradient(120deg,#fff,#b8a8ff);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .start-desc{
+    margin-top:14px;
+    color:var(--muted);
+    font-size:15px;line-height:1.75;
+  }
+  .meta-row{
+    display:flex;gap:12px;flex-wrap:wrap;
+    margin:26px 0 30px;
+  }
+  .meta{
+    flex:1 1 120px;
+    padding:14px 16px;
+    border-radius:14px;
+    background:rgba(255,255,255,.04);
+    border:1px solid var(--border);
+    font-size:12px;color:var(--muted);
+  }
+  .meta b{display:block;font-size:18px;color:var(--text);margin-bottom:3px;}
+
+  /* ---------- 答题页 ---------- */
+  .quiz-head{margin-bottom:24px;}
+  .progress-info{
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:13px;color:var(--muted);font-weight:600;
+  }
+  .timer{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:4px 12px;border-radius:99px;
+    background:rgba(255,255,255,.06);
+    font-variant-numeric:tabular-nums;
+    color:#cbd5e1;
+  }
+  .progress-bar{
+    height:7px;margin-top:12px;border-radius:99px;
+    background:rgba(255,255,255,.08);overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg,var(--p1),var(--p2));
+    transition:width .38s cubic-bezier(.4,0,.2,1);
+  }
+
+  .question{
+    font-size:clamp(18px,3.4vw,21px);
+    font-weight:700;line-height:1.5;
+    margin-bottom:22px;
+  }
+
+  .option{
+    display:flex;align-items:center;gap:14px;
+    width:100%;text-align:left;cursor:pointer;
+    padding:15px 17px;margin-bottom:11px;
+    border-radius:14px;
+    background:rgba(255,255,255,.04);
+    border:1px solid var(--border);
+    color:var(--text);
+    font:inherit;font-size:15px;line-height:1.45;
+    transition:background .18s,border-color .18s,transform .18s,box-shadow .18s;
+  }
+  .option:hover{
+    background:rgba(255,255,255,.085);
+    border-color:rgba(255,255,255,.24);
+    transform:translateX(3px);
+  }
+  .option .key{
+    flex:none;width:30px;height:30px;
+    display:grid;place-items:center;
+    border-radius:9px;
+    background:rgba(255,255,255,.08);
+    font-size:13px;font-weight:700;color:var(--muted);
+    transition:.18s;
+  }
+  .option.selected{
+    background:linear-gradient(135deg,rgba(99,102,241,.28),rgba(168,85,247,.22));
+    border-color:rgba(139,92,246,.85);
+    box-shadow:0 0 0 3px rgba(139,92,246,.16);
+  }
+  .option.selected .key{
+    background:linear-gradient(135deg,var(--p1),var(--p2));
+    color:#fff;
+  }
+
+  .nav{
+    display:flex;justify-content:space-between;gap:12px;
+    margin-top:28px;
+  }
+  .hint{
+    margin-top:18px;text-align:center;
+    font-size:12px;color:rgba(148,163,184,.75);
+  }
+  kbd{
+    display:inline-block;padding:1px 6px;margin:0 2px;
+    border-radius:5px;font-size:11px;font-family:inherit;
+    background:rgba(255,255,255,.09);
+    border:1px solid rgba(255,255,255,.14);
+  }
+
+  /* ---------- 结果页 ---------- */
+  .result-top{
+    display:flex;align-items:center;gap:30px;flex-wrap:wrap;
+    padding-bottom:26px;
+    border-bottom:1px solid var(--border);
+  }
+  .ring{
+    --p:0;--c:var(--ok);
+    position:relative;
+    flex:none;width:150px;height:150px;border-radius:50%;
+    display:grid;place-items:center;
+    background:conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255,255,255,.07) 0);
+  }
+  .ring::before{
+    content:"";position:absolute;inset:11px;border-radius:50%;
+    background:#141a2c;
+  }
+  .ring-inner{
+    position:relative;z-index:1;
+    display:flex;align-items:baseline;gap:1px;
+    font-variant-numeric:tabular-nums;
+  }
+  .ring-inner span{font-size:36px;font-weight:800;letter-spacing:-1.5px;}
+  .ring-inner small{font-size:13px;color:var(--muted);}
+
+  .result-text{flex:1 1 240px;min-width:200px;}
+  .result-text h2{font-size:24px;font-weight:800;margin-bottom:8px;}
+  .result-text p{color:var(--muted);font-size:14px;line-height:1.7;}
+  .result-stats{display:flex;gap:30px;margin-top:18px;}
+  .result-stats > div{display:flex;flex-direction:column;gap:2px;}
+  .result-stats b{font-size:20px;font-variant-numeric:tabular-nums;}
+  .result-stats span{font-size:12px;color:var(--muted);}
+
+  .review-h{
+    font-size:15px;font-weight:700;color:var(--muted);
+    letter-spacing:.5px;margin:24px 0 14px;
+  }
+  .review-item{
+    padding:15px 17px;margin-bottom:11px;
+    border-radius:14px;
+    background:rgba(255,255,255,.03);
+    border-left:3px solid var(--ok);
+    font-size:14px;line-height:1.7;
+  }
+  .review-item.bad{border-left-color:var(--bad);}
+  .review-q{display:flex;gap:9px;font-weight:600;margin-bottom:7px;}
+  .num{
+    flex:none;width:20px;height:20px;margin-top:2px;
+    display:grid;place-items:center;border-radius:6px;
+    font-size:11px;font-weight:700;
+    background:rgba(255,255,255,.1);color:var(--muted);
+  }
+  .review-item.bad .num{background:rgba(239,68,68,.2);color:#fca5a5;}
+  .review-item:not(.bad) .num{background:rgba(34,197,94,.18);color:#86efac;}
+  .row{color:var(--muted);}
+  .row b{font-weight:600;}
+  .good{color:#4ade80;}
+  .bad-t{color:#f87171;}
+  .explain{
+    margin-top:8px;padding-top:8px;
+    border-top:1px dashed rgba(255,255,255,.09);
+    color:var(--muted);font-size:13px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ========== 开始页 ========== -->
+  <section class="screen active" id="screen-start">
+    <div class="card">
+      <span class="badge">🎯 自测挑战</span>
+      <h1 class="start-title">前端 &amp; 通用知识测试</h1>
+      <p class="start-desc">
+        共 10 道单选题，涵盖 HTML / CSS / JavaScript 与一些计算机通用常识。<br>
+        选择答案后可随时切换，全部完成后查看得分与逐题解析。
+      </p>
+      <div class="meta-row">
+        <div class="meta"><b>10</b>题目数量</div>
+        <div class="meta"><b>单选</b>题目类型</div>
+        <div class="meta"><b>不限时</b>答题时间</div>
+      </div>
+      <button class="btn primary" id="btn-start">开始测试 →</button>
+    </div>
+  </section>
+
+  <!-- ========== 答题页 ========== -->
+  <section class="screen" id="screen-quiz">
+    <div class="card">
+      <div class="quiz-head">
+        <div class="progress-info">
+          <span id="q-index">第 1 / 10 题</span>
+          <span class="timer">⏱ <span id="timer">00:00</span></span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      </div>
+
+      <h2 class="question" id="question-text"></h2>
+      <div id="options"></div>
+
+      <div class="nav">
+        <button class="btn ghost" id="btn-prev">← 上一题</button>
+        <button class="btn primary" id="btn-next">下一题 →</button>
+      </div>
+      <p class="hint">快捷键：<kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> 选择 · <kbd>←</kbd><kbd>→</kbd> 切换</p>
+    </div>
+  </section>
+
+  <!-- ========== 结果页 ========== -->
+  <section class="screen" id="screen-result">
+    <div class="card">
+      <div class="result-top">
+        <div class="ring" id="ring">
+          <div class="ring-inner"><span id="score-num">0</span><small>分</small></div>
+        </div>
+        <div class="result-text">
+          <h2 id="result-title">测试完成</h2>
+          <p id="result-desc"></p>
+          <div class="result-stats">
+            <div><b id="stat-correct" class="good">0</b><span>答对</span></div>
+            <div><b id="stat-wrong" class="bad-t">0</b><span>答错</span></div>
+            <div><b id="stat-time">00:00</b><span>用时</span></div>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="review-h">答案回顾</h3>
+      <div id="review"></div>
+
+      <div class="nav">
+        <button class="btn primary" id="btn-restart" style="width:100%">再测一次 ↻</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ================= 题库数据 ================= */
+const QUESTIONS = [
+  {
+    q: 'HTTP 状态码 404 表示什么含义？',
+    options: ['服务器内部错误', '请求的资源不存在', '请求成功', '页面被永久重定向'],
+    answer: 1,
+    explain: '404 Not Found 表示服务器找不到请求的资源；500 才是服务器内部错误，301 是永久重定向。'
+  },
+  {
+    q: 'HTML 中表示最高级别标题的标签是？',
+    options: ['<title>', '<header>', '<h1>', '<head>'],
+    answer: 2,
+    explain: 'h1 ~ h6 表示六级标题，h1 级别最高。title 定义文档标题，head 是文档头部容器。'
+  },
+  {
+    q: '下列哪个不属于 JavaScript 的基本数据类型？',
+    options: ['string', 'number', 'array', 'boolean'],
+    answer: 2,
+    explain: 'array 属于 Object 类型。基本类型为 string、number、boolean、null、undefined、symbol、bigint。'
+  },
+  {
+    q: 'CSS 中用于设置元素外边距的属性是？',
+    options: ['padding', 'margin', 'border', 'spacing'],
+    answer: 1,
+    explain: 'margin 控制外边距（元素外部的间距），padding 控制内边距（元素内容与边框之间的间距）。'
+  },
+  {
+    q: '二进制数 1010 转换为十进制是多少？',
+    options: ['8', '10', '12', '20'],
+    answer: 1,
+    explain: '按权展开：1×8 + 0×4 + 1×2 + 0×1 = 10。'
+  },
+  {
+    q: '太阳系中体积最大的行星是？',
+    options: ['地球', '火星', '土星', '木星'],
+    answer: 3,
+    explain: '木星是太阳系中体积和质量最大的行星，其质量约为其余所有行星总和的 2.5 倍。'
+  },
+  {
+    q: '下列哪个是分布式版本控制工具？',
+    options: ['Docker', 'Git', 'Nginx', 'Redis'],
+    answer: 1,
+    explain: 'Git 是分布式版本控制系统；Docker 是容器工具，Nginx 是 Web 服务器，Redis 是内存数据库。'
+  },
+  {
+    q: '标准大气压下，水的沸点是多少摄氏度？',
+    options: ['90℃', '100℃', '110℃', '120℃'],
+    answer: 1,
+    explain: '在标准大气压（101.325 kPa）下，纯水的沸点为 100℃。'
+  },
+  {
+    q: 'CSS 中修改文字颜色的正确属性是？',
+    options: ['font-color', 'text-color', 'color', 'foreground'],
+    answer: 2,
+    explain: '应使用 color 属性，例如 color: #ffffff; 其余几个属性并不存在。'
+  },
+  {
+    q: '1 个字节（Byte）等于多少位（bit）？',
+    options: ['4', '8', '16', '32'],
+    answer: 1,
+    explain: '1 Byte = 8 bit，这是计算机存储的基本换算关系。'
+  }
+];
+
+/* ================= 状态 ================= */
+let current = 0;
+let answers = [];
+let timerId = null;
+let startTime = 0;
+
+/* ================= 工具 ================= */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => (
+  { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+));
+const fmtTime = sec => {
+  const m = String(Math.floor(sec / 60)).padStart(2, '0');
+  const s = String(sec % 60).padStart(2, '0');
+  return `${m}:${s}`;
+};
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.toggle('active', s.id === id);
+  });
+}
+
+/* ================= 开始 / 重置 ================= */
+function startQuiz() {
+  current = 0;
+  answers = new Array(QUESTIONS.length).fill(null);
+  showScreen('screen-quiz');
+  renderQuestion();
+  startTimer();
+}
+
+function startTimer() {
+  clearInterval(timerId);
+  startTime = Date.now();
+  $('timer').textContent = '00:00';
+  timerId = setInterval(() => {
+    $('timer').textContent = fmtTime(Math.floor((Date.now() - startTime) / 1000));
+  }, 250);
+}
+
+/* ================= 渲染题目 ================= */
+function renderQuestion() {
+  const q = QUESTIONS[current];
+  const total = QUESTIONS.length;
+
+  $('q-index').textContent = `第 ${current + 1} / ${total} 题`;
+  $('progress-fill').style.width = ((current + 1) / total * 100) + '%';
+  $('question-text').textContent = q.q;
+
+  const box = $('options');
+  box.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'option' + (answers[current] === i ? ' selected' : '');
+    const key = document.createElement('span');
+    key.className = 'key';
+    key.textContent = 'ABCD'[i];
+    const txt = document.createElement('span');
+    txt.className = 'txt';
+    txt.textContent = opt;          // 用 textContent 避免标签被解析
+    btn.append(key, txt);
+    btn.addEventListener('click', () => selectOption(i));
+    box.appendChild(btn);
+  });
+
+  $('btn-prev').disabled = current === 0;
+  $('btn-next').textContent = current === total - 1 ? '提交答案 ✓' : '下一题 →';
+}
+
+function selectOption(i) {
+  answers[current] = i;
+  document.querySelectorAll('#options .option').forEach((el, idx) => {
+    el.classList.toggle('selected', idx === i);
+  });
+}
+
+function nextQuestion() {
+  if (current === QUESTIONS.length - 1) { submitQuiz(); return; }
+  current++;
+  renderQuestion();
+}
+
+function prevQuestion() {
+  if (current > 0) { current--; renderQuestion(); }
+}
+
+/* ================= 提交与结算 ================= */
+function submitQuiz() {
+  clearInterval(timerId);
+  const used = Math.floor((Date.now() - startTime) / 1000);
+
+  let correct = 0;
+  QUESTIONS.forEach((q, i) => { if (answers[i] === q.answer) correct++; });
+  const wrong = QUESTIONS.length - correct;
+  const pct = Math.round(correct / QUESTIONS.length * 100);
+
+  // 评价文案
+  let title, desc, color;
+  if (pct >= 90)      { title = '🏆 太强了！';   desc = '几乎完美，知识面非常扎实。';             color = '#22c55e'; }
+  else if (pct >= 70) { title = '🎉 表现不错！'; desc = '大部分知识点都掌握了，再补补薄弱环节。';   color = '#3b82f6'; }
+  else if (pct >= 50) { title = '💪 继续加油';   desc = '基础还行，重点回顾一下下面的错题吧。';     color = '#f59e0b'; }
+  else                { title = '📚 需要复习';   desc = '别灰心，看看每题解析，再来一次会更好。';   color = '#ef4444'; }
+
+  $('result-title').textContent = title;
+  $('result-desc').textContent = desc;
+  $('stat-correct').textContent = correct;
+  $('stat-wrong').textContent = wrong;
+  $('stat-time').textContent = fmtTime(used);
+
+  renderReview();
+  animateRing(pct, color);
+  showScreen('screen-result');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function animateRing(target, color) {
+  const ring = $('ring');
+  const numEl = $('score-num');
+  ring.style.setProperty('--c', color);
+  const duration = 900;
+  const t0 = performance.now();
+
+  function step(t) {
+    const k = Math.min(1, (t - t0) / duration);
+    const eased = 1 - Math.pow(1 - k, 3);
+    const p = target * eased;
+    ring.style.setProperty('--p', p);
+    numEl.textContent = Math.round(p);
+    if (k < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function renderReview() {
+  const box = $('review');
+  box.innerHTML = '';
+
+  QUESTIONS.forEach((q, i) => {
+    const ok = answers[i] === q.answer;
+    const mine = answers[i] === null ? '未作答' : q.options[answers[i]];
+    const right = q.options[q.answer];
+
+    const item = document.createElement('div');
+    item.className = 'review-item' + (ok ? '' : ' bad');
+    item.innerHTML = `
+      <div class="review-q">
+        <span class="num">${i + 1}</span>
+        <span>${esc(q.q)}</span>
+      </div>
+      <div class="row">你的答案：<b class="${ok ? 'good' : 'bad-t'}">${esc(mine)}</b></div>
+      ${ok ? '' : `<div class="row">正确答案：<b class="good">${esc(right)}</b></div>`}
+      <div class="explain">💡 ${esc(q.explain)}</div>
+    `;
+    box.appendChild(item);
+  });
+}
+
+/* ================= 事件绑定 ================= */
+$('btn-start').addEventListener('click', startQuiz);
+$('btn-restart').addEventListener('click', startQuiz);
+$('btn-next').addEventListener('click', nextQuestion);
+$('btn-prev').addEventListener('click', prevQuestion);
+
+document.addEventListener('keydown', e => {
+  if (!$('screen-quiz').classList.contains('active')) return;
+
+  if (e.key >= '1' && e.key <= '4') {
+    const i = Number(e.key) - 1;
+    if (i < QUESTIONS[current].options.length) selectOption(i);
+  } else if (e.key === 'ArrowRight' || e.key === 'Enter') {
+    e.preventDefault();
+    nextQuestion();
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    prevQuestion();
+  }
+});
+</script>
+</body>
+</html>
